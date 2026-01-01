@@ -1,26 +1,25 @@
-# fly.toml app configuration file
+# fly.toml app configuration file generated for counter-app-misty-snowflake-7302 on 2026-01-01T13:38:50+05:30
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
 
-app = "counter-app"
-primary_region = "bom"  # Mumbai, India
+app = 'counter-app-misty-snowflake-7302'
+primary_region = 'bom'
 
 [build]
-  [build.args]
-    GO_VERSION = "1.21"
 
 [env]
-  PORT = "8080"
+  PORT = '8080'
 
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = true
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
 [[vm]]
-  cpu_kind = "shared"
+  memory = '256mb'
   cpus = 1
   memory_mb = 256
