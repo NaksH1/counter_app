@@ -1,0 +1,904 @@
+openapi: 3.0.3
+info:
+  title: Ashram Connect API
+  description: Backend API for managing volunteer profiles, visits, schedules, lockers, and feedback
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+paths:
+  /api/profiles:
+    get:
+      summary: Get all profiles with latest visit data
+      tags:
+        - Profiles
+      responses:
+        '200':
+          description: List of profiles with their latest visit information
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProfileWithVisit'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new profile
+      tags:
+        - Profiles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProfileRequest'
+      responses:
+        '200':
+          description: Profile created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/profiles/{id}:
+    patch:
+      summary: Update an existing profile
+      tags:
+        - Profiles
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Profile ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          description: Invalid request body or profile ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/profiles/{id}/visits:
+    get:
+      summary: Get all visits for a specific profile
+      tags:
+        - Visits
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Profile ID
+      responses:
+        '200':
+          description: List of visits for the profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Visit'
+        '400':
+          description: Invalid profile ID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/visits:
+    post:
+      summary: Create a new visit (auto-checks out existing active visits)
+      tags:
+        - Visits
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddVisitRequest'
+      responses:
+        '200':
+          description: Visit created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '400':
+          description: Invalid request body or profile not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/visits/{id}:
+    patch:
+      summary: Update an existing visit
+      tags:
+        - Visits
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Visit ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVisitRequest'
+      responses:
+        '200':
+          description: Visit updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Visit'
+        '400':
+          description: Invalid request body, visit ID, or date format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/schedules:
+    get:
+      summary: Get schedules within a date range
+      tags:
+        - Schedules
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2024-12-01"
+          description: Start date (YYYY-MM-DD)
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: "2024-12-31"
+          description: End date (YYYY-MM-DD)
+      responses:
+        '200':
+          description: List of schedules in the date range
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Invalid date format or start date > end date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new schedule (prevents duplicates for same profile/date)
+      tags:
+        - Schedules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddScheduleRequest'
+      responses:
+        '201':
+          description: Schedule created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Invalid request body, date format, or visit not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Visit not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Schedule already exists for this profile on this date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/lockers:
+    get:
+      summary: Get all lockers
+      tags:
+        - Lockers
+      responses:
+        '200':
+          description: List of all lockers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Locker'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/feedbacks:
+    get:
+      summary: Get all feedbacks
+      tags:
+        - Feedbacks
+      responses:
+        '200':
+          description: List of all feedbacks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Feedback'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new feedback
+      tags:
+        - Feedbacks
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddFeedbackRequest'
+      responses:
+        '201':
+          description: Feedback created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Feedback'
+        '400':
+          description: Invalid request body or UUID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/profiles/{id}/feedbacks:
+    get:
+      summary: Get all feedbacks for a specific profile
+      tags:
+        - Feedbacks
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Profile ID
+      responses:
+        '200':
+          description: List of feedbacks for the profile
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Feedback'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/seva-types:
+    get:
+      summary: Get all active seva types
+      tags:
+        - SevaTypes
+      responses:
+        '200':
+          description: List of all active seva types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SevaType'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new seva type
+      tags:
+        - SevaTypes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddSevaTypeRequest'
+      responses:
+        '201':
+          description: Seva type created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SevaType'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/stay-areas:
+    get:
+      summary: Get all stay areas
+      tags:
+        - StayAreas
+      responses:
+        '200':
+          description: List of all stay areas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StayArea'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    post:
+      summary: Create a new stay area
+      tags:
+        - StayAreas
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddStayAreaRequest'
+      responses:
+        '201':
+          description: Stay area created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StayArea'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/stay-areas/occupancy:
+    get:
+      summary: Get occupancy information for all stay areas
+      tags:
+        - StayAreas
+      responses:
+        '200':
+          description: List of all stay areas with occupancy information
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StayAreaOccupancyResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ProfileWithVisit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        phone_number:
+          type: string
+        email:
+          type: string
+          format: email
+        gender:
+          type: string
+          enum: [Male, Female, Other]
+        category:
+          type: string
+          enum: [Short Term Volunteer, Long Term Volunteer, Overseas Volunteer]
+        is_blocked:
+          type: boolean
+        remarks:
+          type: string
+          nullable: true
+        active_visit_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: ID of the current checked-in visit
+        departure_date:
+          type: string
+          format: date
+          nullable: true
+        stay_area:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [checked-in, pending, checked-out]
+          nullable: true
+
+    Profile:
+      type: object
+      required:
+        - name
+        - email
+        - gender
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        phone_number:
+          type: string
+        gender:
+          type: string
+          enum: [Male, Female, Other]
+        category:
+          type: string
+          enum: [Short Term Volunteer, Long Term Volunteer, Overseas Volunteer]
+        is_blocked:
+          type: boolean
+          default: false
+        remarks:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateProfileRequest:
+      type: object
+      required:
+        - profile
+      properties:
+        profile:
+          $ref: '#/components/schemas/Profile'
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        phone_number:
+          type: string
+        gender:
+          type: string
+          enum: [Male, Female, Other]
+        category:
+          type: string
+          enum: [Short Term Volunteer, Long Term Volunteer, Overseas Volunteer]
+        is_blocked:
+          type: boolean
+        remarks:
+          type: string
+
+    Visit:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        arrival_date:
+          type: string
+          format: date-time
+        departure_date:
+          type: string
+          format: date-time
+          nullable: true
+        stay_area_id:
+          type: string
+          format: uuid
+        stay_area:
+          $ref: '#/components/schemas/StayArea'
+          description: Full stay area details (preloaded)
+        status:
+          type: string
+          enum: [checked-in, pending, checked-out]
+        locker_id:
+          type: string
+          format: uuid
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AddVisitRequest:
+      type: object
+      required:
+        - profile_id
+        - email
+        - arrival_date
+        - stay_area_id
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        arrival_date:
+          type: string
+          format: date
+          example: "2024-12-28"
+        departure_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-30"
+        stay_area_id:
+          type: string
+          format: uuid
+        profile_status:
+          type: string
+          enum: [checked-in, pending, checked-out]
+          nullable: true
+
+    UpdateVisitRequest:
+      type: object
+      properties:
+        departure_date:
+          type: string
+          format: date
+          nullable: true
+          example: "2024-12-30"
+        stay_area_id:
+          type: string
+          format: uuid
+          nullable: true
+        locker_id:
+          type: string
+          format: uuid
+          nullable: true
+        remarks:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [checked-in, pending, checked-out]
+          nullable: true
+
+    Schedule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        visit_id:
+          type: string
+          format: uuid
+        seva_type_id:
+          type: string
+          format: uuid
+        seva_type:
+          $ref: '#/components/schemas/SevaType'
+          description: Full seva type details (preloaded)
+        location:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    AddScheduleRequest:
+      type: object
+      required:
+        - profile_id
+        - visit_id
+        - seva_type
+        - date
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        visit_id:
+          type: string
+          format: uuid
+        seva_type:
+          type: string
+        location:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+          example: "2024-12-28"
+
+    Locker:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        locker_number:
+          type: string
+        section:
+          type: string
+        is_occupied:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Feedback:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        profile_id:
+          type: string
+          format: uuid
+        profile:
+          $ref: '#/components/schemas/Profile'
+          description: Full profile details (included when fetching all feedbacks)
+        visit_id:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        type:
+          type: string
+          enum: [Positive, Negative, Neutral]
+        created_by:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    AddFeedbackRequest:
+      type: object
+      required:
+        - profile_id
+        - content
+        - type
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        visit_id:
+          type: string
+          format: uuid
+          nullable: true
+        content:
+          type: string
+        type:
+          type: string
+          enum: [Positive, Negative, Neutral]
+        created_by:
+          type: string
+          nullable: true
+
+    SevaType:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    AddSevaTypeRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+
+    StayArea:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        capacity:
+          type: integer
+
+    AddStayAreaRequest:
+      type: object
+      required:
+        - name
+        - capacity
+      properties:
+        name:
+          type: string
+        capacity:
+          type: integer
+          minimum: 1
+
+    StayAreaOccupancyResponse:
+      type: object
+      properties:
+        stay_area_id:
+          type: string
+          format: uuid
+        stay_name:
+          type: string
+        capacity:
+          type: integer
+        current_occupied_count:
+          type: integer
+        available:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
